@@ -382,6 +382,14 @@ class EvidenceImage(Base):
     reference: Mapped[str | None] = mapped_column(String(300))
     is_synthetic: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    #: Milestone the photograph documents — BEFORE, DURING or AFTER — when it
+    #: was recorded on the project's evidence timeline. Empty otherwise.
+    phase: Mapped[str | None] = mapped_column(String(16), index=True)
+    #: SHA-256 of the stored image bytes, computed on the server at upload. It
+    #: shows whether the stored copy is later altered; it says nothing about
+    #: when or where the photograph was taken.
+    sha256: Mapped[str | None] = mapped_column(String(64))
+
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 
     def as_dict(self) -> dict:
@@ -399,5 +407,7 @@ class EvidenceImage(Base):
             "uploaded_role": self.uploaded_role,
             "reference": self.reference,
             "is_synthetic": self.is_synthetic,
+            "phase": self.phase,
+            "sha256": self.sha256,
             "created_at": self.created_at,
         }

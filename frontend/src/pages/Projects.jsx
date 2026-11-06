@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import ProjectTable from '../components/ProjectTable'
+import GeospatialRiskMap from '../components/GeospatialRiskMap'
 import { ErrorPanel, LoadingPanel } from '../components/States'
 import api from '../services/api'
 import useApi from '../hooks/useApi'
+import { useRole } from '../hooks/useRole'
 
 const RISK_FILTERS = ['ALL', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
 
@@ -16,6 +18,7 @@ const RISK_FILTERS = ['ALL', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
  * one place.
  */
 export default function Projects() {
+  const { roleKey } = useRole()
   const [searchParams, setSearchParams] = useSearchParams()
   const riskParam = (searchParams.get('risk') || 'ALL').toUpperCase()
   const risk = RISK_FILTERS.includes(riskParam) ? riskParam : 'ALL'
@@ -32,7 +35,11 @@ export default function Projects() {
 
   const { data, error, loading, reload } = useApi(
     (opts) => api.projects({ search: debounced, risk_level: risk, sort }, opts),
-    [debounced, risk, sort],
+    [debounced, risk, sort, roleKey],
+  )
+  const { data: mapData, error: mapError, loading: mapLoading, reload: reloadMap } = useApi(
+    (opts) => api.projects({ risk_level: 'ALL', sort: 'risk_desc' }, opts),
+    [roleKey],
   )
 
   const setRisk = (value) => {
@@ -50,6 +57,16 @@ export default function Projects() {
           All sanctioned works in the synthetic dataset, with risk scores computed on load.
         </p>
       </div>
+
+      {mapLoading && <LoadingPanel label="Loading geospatial risk map…" rows={4} />}
+      {mapError && !mapLoading && (
+        <section className="panel p-4">
+          <ErrorPanel error={mapError} onRetry={reloadMap} context="GET /api/projects for map" />
+        </section>
+      )}
+      {mapData && !mapLoading && !mapError && (
+        <GeospatialRiskMap projects={mapData.projects || []} />
+      )}
 
       <section className="panel overflow-hidden">
         <div className="flex flex-wrap items-center gap-3 border-b border-ink-200 px-4 py-3">

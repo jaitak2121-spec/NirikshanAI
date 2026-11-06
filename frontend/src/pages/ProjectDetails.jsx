@@ -15,6 +15,7 @@ import { ErrorPanel, LoadingInline, LoadingPanel, NotFoundPanel } from '../compo
 import api from '../services/api'
 import useApi from '../hooks/useApi'
 import useVerification from '../hooks/useVerification'
+import { useRole } from '../hooks/useRole'
 import { humanDate, orDash, pct, rupees, rupeesShort, riskStyle, signedPct } from '../utils/format'
 
 /**
@@ -26,9 +27,15 @@ import { humanDate, orDash, pct, rupees, rupeesShort, riskStyle, signedPct } fro
  */
 export default function ProjectDetails() {
   const { projectId } = useParams()
+  const { roleKey, can } = useRole()
   const { data, error, loading, reload } = useApi(
     (opts) => api.project(projectId, opts),
-    [projectId],
+    [projectId, roleKey],
+  )
+  const { data: caseData } = useApi(
+    (opts) => api.cases({ project_id: projectId }, opts),
+    [projectId, roleKey],
+    { enabled: can('case.verify') },
   )
 
   // Analysis state is held separately so a re-run can show its own progress and
@@ -37,6 +44,24 @@ export default function ProjectDetails() {
   const [analysing, setAnalysing] = useState(false)
   const [analysisError, setAnalysisError] = useState(null)
   const [ranAt, setRanAt] = useState(null)
+  const [evidenceUploading, setEvidenceUploading] = useState(false)
+  const [evidenceError, setEvidenceError] = useState(null)
+
+  const evidenceCase = caseData?.cases?.find((item) => item.status !== 'CLOSED') || null
+
+  const uploadEvidence = async (body) => {
+    if (!evidenceCase) return
+    setEvidenceUploading(true)
+    setEvidenceError(null)
+    try {
+      await api.addCaseEvidence(evidenceCase.case_id, body)
+      reload()
+    } catch (err) {
+      setEvidenceError(err)
+    } finally {
+      setEvidenceUploading(false)
+    }
+  }
 
   const runAnalysis = async () => {
     setAnalysing(true)
@@ -337,7 +362,19 @@ export default function ProjectDetails() {
             </section>
           )}
 
-          <EvidenceGallery evidence={project.evidence || []} />
+          {evidenceError && (
+            <ErrorPanel
+              error={evidenceError}
+              onRetry={() => setEvidenceError(null)}
+              context={`Evidence upload for ${project.project_id}`}
+            />
+          )}
+          <EvidenceGallery
+            evidence={project.evidence || []}
+            canUpload={Boolean(evidenceCase && caseData?.permissions?.['case.verify'])}
+            busy={evidenceUploading}
+            onUpload={uploadEvidence}
+          />
         </div>
 
         {/* Right: the assessment -------------------------------------- */}

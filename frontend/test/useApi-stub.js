@@ -5,7 +5,8 @@
  * this returns the loaded state directly, letting every page be rendered in its
  * populated state against recorded backend data.
  */
-export default function useApi(factory) {
+export default function useApi(factory, deps = [], { enabled = true } = {}) {
+  if (!enabled) return { data: null, error: null, loading: false, reload: () => {} }
   const result = factory({})
   const data = result && typeof result === 'object' && '__fixture' in result ? result.__fixture : result
   return { data, error: null, loading: false, reload: () => {} }

@@ -40,7 +40,14 @@ const ROUTES = [
 // empty shell without erroring.
 const MUST_CONTAIN = {
   '/': ['NIRIKSHAN AI', 'Prototype / Synthetic Demonstration Data', 'Risk distribution'],
-  '/projects': ['MPLAD-2026-024', 'Works register', 'Risk score'],
+  '/projects': [
+    'MPLAD-2026-024',
+    'Works register',
+    'Risk score',
+    'Geospatial risk map',
+    'All project categories',
+    'Select a marker to open the project details page',
+  ],
   '/projects?risk=CRITICAL': ['MPLAD-2026-024', 'Showing 1 of 26'],
   '/projects/MPLAD-2026-024': [
     'Community Hall',
@@ -70,6 +77,7 @@ const MUST_CONTAIN = {
     'Verification checklist',
     'Audit trail',
     'Case actions',
+    'Evidence timeline',
     // The generated checklist must come from the signals actually detected.
     'Cost Anomaly',
     // The trail must start with the engine raising the signal, not a person.

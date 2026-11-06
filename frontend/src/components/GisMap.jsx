@@ -24,6 +24,15 @@ const DUPLICATE_RADIUS_M = 3000
 
 let leafletPromise = null
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;')
+}
+
 /** Load Leaflet once per page, whichever component asks for it first. */
 function loadLeaflet() {
   if (window.L) return Promise.resolve(window.L)
@@ -60,7 +69,14 @@ function loadLeaflet() {
   return leafletPromise
 }
 
-export default function GisMap({ points = [], height = 300, onUnavailable }) {
+export default function GisMap({
+  points = [],
+  height = 300,
+  onUnavailable,
+  mode = 'proximity',
+  onMarkerClick,
+  ariaLabel,
+}) {
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const [failed, setFailed] = useState(false)
@@ -73,7 +89,6 @@ export default function GisMap({ points = [], height = 300, onUnavailable }) {
         if (cancelled || !containerRef.current || mapRef.current) return
 
         const origin = points.find((p) => p.isOrigin) || points[0]
-        if (!origin) return
 
         const map = L.map(containerRef.current, {
           scrollWheelZoom: false,
@@ -88,22 +103,24 @@ export default function GisMap({ points = [], height = 300, onUnavailable }) {
 
         L.control.scale({ imperial: false }).addTo(map)
 
-        // The radius within which two similar works count as co-located.
-        L.circle([origin.lat, origin.lon], {
-          radius: DUPLICATE_RADIUS_M,
-          color: '#64748b',
-          weight: 1,
-          dashArray: '4 4',
-          fillColor: '#94a3b8',
-          fillOpacity: 0.06,
-        })
-          .addTo(map)
-          .bindTooltip('3 km co-location radius used by duplicate detection')
+        if (mode === 'proximity' && origin) {
+          // The radius within which two similar works count as co-located.
+          L.circle([origin.lat, origin.lon], {
+            radius: DUPLICATE_RADIUS_M,
+            color: '#64748b',
+            weight: 1,
+            dashArray: '4 4',
+            fillColor: '#94a3b8',
+            fillOpacity: 0.06,
+          })
+            .addTo(map)
+            .bindTooltip('3 km co-location radius used by duplicate detection')
+        }
 
         points.forEach((p) => {
           const colour = riskStyle(p.level).hex
 
-          if (!p.isOrigin) {
+          if (mode === 'proximity' && origin && !p.isOrigin) {
             L.polyline(
               [
                 [origin.lat, origin.lon],
@@ -113,26 +130,41 @@ export default function GisMap({ points = [], height = 300, onUnavailable }) {
             ).addTo(map)
           }
 
-          L.circleMarker([p.lat, p.lon], {
+          const marker = L.circleMarker([p.lat, p.lon], {
             radius: p.isOrigin ? 9 : 6,
             color: '#ffffff',
             weight: 2,
             fillColor: colour,
             fillOpacity: 1,
-          })
-            .addTo(map)
-            .bindPopup(
-              `<strong>${p.id}</strong><br/>${p.name}<br/>` +
-                (p.isOrigin
-                  ? '<em>This work</em>'
-                  : `${p.distance} km away · risk ${Math.round(p.score ?? 0)} (${p.level})`),
-            )
+          }).addTo(map)
+
+          const detail =
+            mode === 'portfolio'
+              ? `${escapeHtml(p.category || 'Category not recorded')}<br/>Risk ${Math.round(p.score ?? 0)} (${escapeHtml(p.level)})`
+              : p.isOrigin
+                ? '<em>This work</em>'
+                : `${escapeHtml(p.distance)} km away · risk ${Math.round(p.score ?? 0)} (${escapeHtml(p.level)})`
+
+          marker.bindPopup(
+            `<strong>${escapeHtml(p.id)}</strong><br/>${escapeHtml(p.name)}<br/>${detail}` +
+              (onMarkerClick ? '<br/><em>Click marker to open details</em>' : ''),
+          )
+          if (onMarkerClick) marker.on('click', () => onMarkerClick(p))
         })
 
-        const bounds = L.latLngBounds(points.map((p) => [p.lat, p.lon]))
-        map.fitBounds(bounds.pad(0.35), { maxZoom: 14 })
-        // A lone point yields a degenerate bounding box, so set a sane zoom.
-        if (points.length === 1) map.setView([origin.lat, origin.lon], 13)
+        if (points.length > 0) {
+          const bounds = L.latLngBounds(points.map((p) => [p.lat, p.lon]))
+          map.fitBounds(bounds.pad(mode === 'portfolio' ? 0.12 : 0.35), {
+            maxZoom: mode === 'portfolio' ? 7 : 14,
+          })
+          // A lone point yields a degenerate bounding box, so set a sane zoom.
+          if (points.length === 1) {
+            map.setView([points[0].lat, points[0].lon], mode === 'portfolio' ? 6 : 13)
+          }
+        } else {
+          // India-wide context for an empty filtered result.
+          map.setView([22.5, 79], 4)
+        }
 
         // The container is sized by CSS after mount; Leaflet needs telling.
         setTimeout(() => map.invalidateSize(), 0)
@@ -150,9 +182,7 @@ export default function GisMap({ points = [], height = 300, onUnavailable }) {
         mapRef.current = null
       }
     }
-    // Points are derived from an immutable analysis payload for this work.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [points, mode, onMarkerClick, onUnavailable])
 
   if (failed) return null
 
@@ -162,7 +192,12 @@ export default function GisMap({ points = [], height = 300, onUnavailable }) {
       style={{ height }}
       className="w-full rounded border border-ink-200 bg-ink-50"
       role="img"
-      aria-label="Basemap showing this work and nearby works"
+      aria-label={
+        ariaLabel ||
+        (mode === 'portfolio'
+          ? 'India map showing projects by risk level'
+          : 'Basemap showing this work and nearby works')
+      }
     />
   )
 }

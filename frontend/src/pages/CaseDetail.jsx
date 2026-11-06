@@ -5,6 +5,7 @@ import { CaseOutcomeBadge, CaseStatusBadge } from '../components/CaseStatusBadge
 import { ErrorPanel, LoadingPanel } from '../components/States'
 import VerificationChecklist from '../components/VerificationChecklist'
 import AuditTrail from '../components/AuditTrail'
+import EvidenceGallery from '../components/EvidenceGallery'
 import api from '../services/api'
 import useApi from '../hooks/useApi'
 import { useRole } from '../hooks/useRole'
@@ -158,6 +159,15 @@ export default function CaseDetail() {
         onAddEvidence={(itemKey, body) =>
           act(() => api.addCaseEvidence(data.case_id, { ...body, item_key: itemKey }))
         }
+      />
+
+      {/* -------------------------------------------------- evidence */}
+      <EvidenceGallery
+        title="Evidence timeline"
+        evidence={data.evidence || []}
+        canUpload={Boolean(data.permissions?.['case.verify']) && data.status !== 'CLOSED'}
+        busy={busy}
+        onUpload={(body) => act(() => api.addCaseEvidence(data.case_id, body))}
       />
 
       {/* -------------------------------------------------- audit trail */}

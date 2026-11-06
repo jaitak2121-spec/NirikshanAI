@@ -36,6 +36,13 @@ export default function EvidenceUpload({ onSubmit, onCancel, busy, signalTitle }
       setFileName('')
       return
     }
+    if (!file.type.startsWith('image/')) {
+      setLocalError('Choose an image file.')
+      setImageData(null)
+      setFileName('')
+      if (fileRef.current) fileRef.current.value = ''
+      return
+    }
     if (file.size > MAX_BYTES) {
       setLocalError('Image must be under 2.5 MB for this prototype.')
       setImageData(null)
@@ -105,6 +112,24 @@ export default function EvidenceUpload({ onSubmit, onCancel, busy, signalTitle }
         />
         {fileName && <span className="truncate text-2xs text-ink-500">{fileName}</span>}
       </div>
+
+      {imageData && (
+        <div className="flex items-center gap-3 rounded border border-ink-200 bg-white p-2">
+          <img
+            src={imageData}
+            alt="Selected evidence preview"
+            className="h-16 w-20 rounded border border-ink-200 object-cover"
+          />
+          <div>
+            <div className="text-2xs font-semibold uppercase tracking-wide text-ink-600">
+              Upload preview
+            </div>
+            <p className="mt-0.5 text-2xs text-ink-400">
+              This image will be recorded as officer-added evidence.
+            </p>
+          </div>
+        </div>
+      )}
 
       <input
         className="input"
