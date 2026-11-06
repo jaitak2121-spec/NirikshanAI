@@ -83,6 +83,7 @@ export default function GisMap({
 
   useEffect(() => {
     let cancelled = false
+    let resizeTimer
 
     loadLeaflet()
       .then((L) => {
@@ -95,6 +96,9 @@ export default function GisMap({
           attributionControl: true,
         })
         mapRef.current = map
+        // Initialise the view before adding vector layers. A failed layer added
+        // before map readiness can otherwise leave Leaflet unable to clean up.
+        map.setView([22.5, 79], 4)
 
         L.tileLayer(`https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`, {
           maxZoom: 19,
@@ -167,7 +171,9 @@ export default function GisMap({
         }
 
         // The container is sized by CSS after mount; Leaflet needs telling.
-        setTimeout(() => map.invalidateSize(), 0)
+        resizeTimer = setTimeout(() => {
+          if (!cancelled) map.invalidateSize()
+        }, 0)
       })
       .catch(() => {
         if (cancelled) return
@@ -177,6 +183,7 @@ export default function GisMap({
 
     return () => {
       cancelled = true
+      clearTimeout(resizeTimer)
       if (mapRef.current) {
         mapRef.current.remove()
         mapRef.current = null

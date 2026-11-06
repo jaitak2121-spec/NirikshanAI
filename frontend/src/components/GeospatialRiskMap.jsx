@@ -6,6 +6,7 @@ import { riskStyle } from '../utils/format'
 const RISK_LEVELS = ['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW']
 
 function hasValidCoordinates(project) {
+  if (project.latitude == null || project.longitude == null) return false
   const latitude = Number(project.latitude)
   const longitude = Number(project.longitude)
   return (
