@@ -220,6 +220,7 @@ Other** and **Root Directory:** the repository root, not `backend`. `.python-ver
 pins CPython 3.12, because 3.14 has no prebuilt wheel for `pydantic-core` and
 would try to compile it from source.
 
+
 ### Tests
 
 ```bash
